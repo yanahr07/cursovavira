@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Pac-man</title>
+	<style>
+		canvas {
+			border: 1px solid black;
+			/* Додаємо чорну рамку до canvas для видимості */
+			background-color: lightgrey;
+			/* Даємо ледь сірий фон, щоб краще було видно жовтого пакмена */
+		}
+	</style>
+</head>
+
+<body>
+	<canvas id="canvas" width="400" height="400"></canvas>
+	<!-- Визначаємо канвас для гри -->
+	<script>
+		const canvas = document.getElementById("canvas"); // Отримуємо елемент canvas
+		const ctx = canvas.getContext("2d"); // Отримуємо контекст для малювання на canvas
+
+		const cellSize = 40; // Розмір клітинки в лабіринті
+		const rows = 10; // Кількість рядків в лабіринті
+		const cols = 10; // Кількість стовпців в лабіринті
+		var score = 0; // Ініціалізація змінної для зберігання рахунку
+
+		var g = 0;
+
+		// Лабіринт: 0 - вільний простір, 1 - стіна
+		const maze = [
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 1, 1, 0, 1, 1, 1, 0, 1],
+			[1, 0, 1, 0, 0, 0, 1, 0, 0, 1],
+			[1, 0, 1, 1, 1, 0, 1, 1, 0, 1],
+			[1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+			[1, 0, 1, 0, 1, 1, 1, 0, 1, 1],
+			[1, 0, 0, 0, 1, 1, 0, 0, 1, 1],
+			[1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		];
+
+		let pacman = {
+			x: 1 * cellSize + cellSize / 2, // Початкові координати Pac-Man (центр клітинки)
+			y: 1 * cellSize + cellSize / 2,
+			radius: 15, // Розмір Pac-Man
+			direction: "right", // Початковий напрямок руху (право)
+			speed: cellSize, // Швидкість руху, рівна розміру клітинки
+			color: "yellow"
+		};
+
+		let coin = {
+			x: 3 * cellSize + cellSize / 2, // Початкові координати Pac-Man (центр клітинки)
+			y: 3 * cellSize + cellSize / 2,
+			radius: 10,
+		}
+
+		let Gcoin1 = {
+			x: 7 * cellSize + cellSize / 2, // Початкові координати Pac-Man (центр клітинки)
+			y: 3 * cellSize + cellSize / 2,
+			radius: 10,
+		}
+
+		let Gcoin2 = {
+			x: 3 * cellSize + cellSize / 2, // Початкові координати Pac-Man (центр клітинки)
+			y: 3 * cellSize + cellSize / 2,
+			radius: 10,
+		}
+
+		// Функція для малювання лабіринту
+		function drawMaze() {
+			for (let row = 0; row < rows; row++) {
+				for (let col = 0; col < cols; col++) {
+					if (maze[row][col] === 1) {
+						ctx.fillStyle = "blue"; // Колір стін
+						ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize); // Малюємо стіну
+					}
+				}
+			}
+		}
+
+		var drawScore = function () {
+			ctx.font = "20px Courier";
+			ctx.fillStyle = "White";
+			ctx.textAlign = "left";
+			ctx.textBaseline = "top";
+			ctx.fillText("Score: " + score, 10, canvas.height - 30);
+		};
+
+		function getRandomColor() {
+			const r = Math.floor(Math.random() * 256);
+			const g = Math.floor(Math.random() * 256);
+			const b = Math.floor(Math.random() * 256);
+			return `rgb(${r}, ${g}, ${b})`;
+		}
+
+		// Функція для малювання Pac-Man
+		function drawPacman() {
+			ctx.beginPath(); // Початок малювання фігури
+
+			// Початкові кути для відкриття рота (право)
+			let startAngle = 0.25 * Math.PI;
+			let endAngle = 1.75 * Math.PI;
+
+			// Якщо напрямок вліво, змінюємо кути відкриття рота
+			if (pacman.direction === "left") {
+				startAngle = Math.PI + 0.25 * Math.PI;
+				endAngle = Math.PI + 1.75 * Math.PI;
+			}
+
+			// Малюємо Pac-Man з вказаними кутами
+			ctx.arc(pacman.x, pacman.y, pacman.radius, startAngle, endAngle);
+			ctx.lineTo(pacman.x, pacman.y); // Завершуємо шлях до центру
+			ctx.fillStyle = pacman.color;
+			ctx.fill(); // Заповнюємо фігуру
+			ctx.closePath(); // Завершуємо малювання
+
+			// Малюємо око
+			const eyeX = pacman.direction === "left" ? pacman.x + 5 : pacman.x - 5; // Око змінює свою позицію в залежності від напрямку
+			const eyeY = pacman.y - 5;
+			const eyeRadius = 3; // Розмір ока
+
+			// Малюємо око
+			ctx.beginPath();
+			ctx.arc(eyeX, eyeY, eyeRadius, 0, 2 * Math.PI);
+			ctx.fillStyle = "black"; // Колір ока
+			ctx.fill(); // Заповнюємо око
+			ctx.closePath(); // Завершуємо малювання ока
+		}
+
+
+
+		function drawCoin(x, y, radius) {
+			ctx.beginPath();
+			ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2, false);
+			ctx.fillStyle = "gold"; // Колір Pac-Man
+			ctx.fill(); // Заповнюємо фігуру
+			ctx.closePath(); // Завершуємо малювання
+		};
+
+		function ghostCoin1(x, y, radius) {
+			ctx.beginPath();
+			ctx.arc(Gcoin1.x, Gcoin1.y, Gcoin1.radius, 0, Math.PI * 2, false);
+			ctx.fillStyle = "rgb(211, 211, 211, 0);"; // Колір Pac-Man
+			ctx.fill(); // Заповнюємо фігуру
+			ctx.closePath(); // Завершуємо малювання
+		};
+
+		function ghostCoin2(x, y, radius) {
+			ctx.beginPath();
+			ctx.arc(Gcoin2.x, Gcoin2.y, Gcoin2.radius, 0, Math.PI * 2, false);
+			ctx.fillStyle = "rgb(211, 211, 211, 0);"; // Колір Pac-Man
+			ctx.fill(); // Заповнюємо фігуру
+			ctx.closePath(); // Завершуємо малювання
+		};
+
+		// Функція для перевірки, чи можна зробити рух в нову позицію
+		function isValidMove(newX, newY) {
+			const gridX = Math.floor(newX / cellSize); // Переводимо координати в клітинки лабіринту
+			const gridY = Math.floor(newY / cellSize);
+			return maze[gridY] && maze[gridY][gridX] === 0; // Перевіряємо, чи клітинка не є стіною
+		}
+
+		// Оновлення гри
+		function update() {
+			ctx.clearRect(0, 0, canvas.width, canvas.height); // Очищаємо канвас
+			drawMaze(); // Малюємо лабіринт
+			drawPacman(); // Малюємо Pac-Man
+			drawCoin();
+			drawScore();
+
+			// Рух Pac-Man, залежно від напрямку
+			let newX = pacman.x;
+			let newY = pacman.y;
+
+			if (pacman.direction === "right") newX += pacman.speed; // Рух вправо
+			if (pacman.direction === "left") newX -= pacman.speed; // Рух вліво
+			if (pacman.direction === "up") newY -= pacman.speed; // Рух вгору
+			if (pacman.direction === "down") newY += pacman.speed; // Рух вниз
+
+			// Перевіряємо, чи можна перемістити Pac-Man в нову позицію
+			if (isValidMove(newX, newY)) {
+				pacman.x = newX; // Оновлюємо координати
+				pacman.y = newY;
+			}
+
+			
+
+			if (pacman.x == coin.x && pacman.y == coin.y) {
+				score++;
+				pacman.color = getRandomColor();
+
+				let valid = false;
+
+				while (!valid) {
+					let col = Math.floor(Math.random() * cols);
+					let row = Math.floor(Math.random() * rows);
+
+					if (maze[row][col] === 0) {
+						coin.x = col * cellSize + cellSize / 2;
+						coin.y = row * cellSize + cellSize / 2;
+						valid = true;
+					}
+				}
+			}
+
+			if (pacman.x == Gcoin1.x && pacman.y == Gcoin1.y) {
+				g = 1;
+			} else if (pacman.x == Gcoin2.x && pacman.y == Gcoin2.y) {
+				g = 2;
+			} else {
+				g = 0;
+				time1 = 5;
+				time2 = 5;
+			}
+
+			if (time1 == 0 && g == 1) {
+				pacman.x = 1 * cellSize + cellSize / 2;
+				pacman.y = 1 * cellSize + cellSize / 2;
+				const coinImg = new Image();
+				coinImg.src = "ghost1.png"; // шлях до картинки
+
+				coinImg.onload = function () {
+					ctx.drawImage(coinImg, Gcoin1.x - 30, Gcoin1.y - 30, 60, 60);
+				};
+
+				score = 0;
+			}
+
+			if (time2 == 0 && g == 2) {
+				pacman.x = 1 * cellSize + cellSize / 2;
+				pacman.y = 1 * cellSize + cellSize / 2;
+				const coinImg = new Image();
+				coinImg.src = "ghost1.png"; // шлях до картинки
+
+				coinImg.onload = function () {
+					ctx.drawImage(coinImg, Gcoin1.x - 30, Gcoin1.y - 30, 60, 60);
+				};
+
+				score = 0;
+			}
+
+
+
+		}
+
+		var time1 = 5;
+		var time2 = 5;
+
+		function ghost() {
+
+			if (g == 1 && time1 > 0) {
+				time1--;
+			}
+
+			if (g == 2 && time2 > 0) {
+				time2--;
+			}
+
+		}
+
+		// Обробник клавіш для зміни напрямку руху
+		document.addEventListener("keydown", function (event) {
+			if (event.key === "ArrowRight") pacman.direction = "right"; // Якщо натиснута стрілка вправо
+			if (event.key === "ArrowLeft") pacman.direction = "left"; // Якщо натиснута стрілка вліво
+			if (event.key === "ArrowUp") pacman.direction = "up"; // Якщо натиснута стрілка вгору
+			if (event.key === "ArrowDown") pacman.direction = "down"; // Якщо натиснута стрілка вниз
+		});
+
+		setInterval(ghost, 1000);
+
+
+
+
+
+		// Використовуємо setInterval для періодичного оновлення гри
+		setInterval(update, 200); // Оновлення гри кожні 200 мілісекунд
+	</script>
+</body>
+
+</html>
